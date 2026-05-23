@@ -71,10 +71,10 @@ export async function getDashboardData(userId: string, forceRefresh = false): Pr
   if (!isSupabase) {
     const db = mockDb.getDb();
     userObj = db.users.find(u => u.id === userId);
-    userTopics = db.user_topics.filter(ut => ut.user_id === userId);
-    tests = db.test_attempts.filter(t => t.user_id === userId);
+    userTopics = db.userTopics.filter(ut => ut.user_id === userId);
+    tests = [];
     mocks = db.mocks.filter(m => m.user_id === userId && !m.locked);
-    mockPerf = db.mock_topic_perf.filter(mp => mocks.some(m => m.id === mp.mock_id));
+    mockPerf = db.mockTopicPerf.filter(mp => mocks.some(m => m.id === mp.mock_id));
   } else {
     const supabase = createClient();
     const [userRes, utRes, testsRes, mocksRes] = await Promise.all([
