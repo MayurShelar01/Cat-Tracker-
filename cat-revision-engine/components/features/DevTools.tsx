@@ -21,7 +21,7 @@ export const DevTools = () => {
     }
   }, []);
 
-  const refreshState = () => {
+  const refreshState = async () => {
     const d = getVirtualToday();
     setCurrentDate(d);
     
