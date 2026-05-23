@@ -14,9 +14,9 @@ export const BottomNav = () => {
   }
 
   const navItems = [
-    { name: 'Today', href: '/today', icon: Home, activeColor: 'text-section-quant' },
-    { name: 'Mocks', href: '/mocks', icon: ClipboardList, activeColor: 'text-section-lrdi' },
-    { name: 'Dashboard', href: '/dashboard', icon: BarChart2, activeColor: 'text-section-varc' },
+    { name: 'Today', href: '/today', icon: Home, activeColor: 'text-section-quant', disabled: false },
+    { name: 'Mocks', href: '/mocks', icon: ClipboardList, activeColor: 'text-section-lrdi', disabled: false },
+    { name: 'Dashboard', href: '/dashboard', icon: BarChart2, activeColor: 'text-section-varc', disabled: false },
   ];
 
   return (
