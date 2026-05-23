@@ -1,70 +1,41 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  // Always start with a safe pass-through response
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  })
+/**
+ * Lightweight middleware that checks for a Supabase auth cookie
+ * WITHOUT importing @supabase/ssr (which uses Node.js APIs like
+ * __dirname that crash Vercel's Edge runtime).
+ *
+ * The actual session validation still happens server-side in the
+ * route handlers / server components via createServerClient.
+ * This middleware only does a fast cookie-presence redirect.
+ */
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  // Public paths that never require auth
+  const isPublicPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/')
 
-  // If Supabase creds are missing or empty, skip auth and let the page handle it
-  if (
-    !supabaseUrl ||
-    !supabaseAnonKey ||
-    supabaseUrl.trim() === '' ||
-    supabaseAnonKey.trim() === ''
-  ) {
-    return response
+  if (isPublicPath) {
+    return NextResponse.next()
   }
 
-  try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          // First pass: update request cookies
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set({ name, value, ...options })
-          )
-          // Rebuild response with updated request headers
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          })
-          // Second pass: set cookies on response
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set({ name, value, ...options })
-          )
-        },
-      },
-    })
+  // Check for any Supabase auth cookie (they are prefixed sb-)
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
 
-    // Refresh session — this is the only Supabase call in middleware
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    const { pathname } = request.nextUrl
-    const isPublicPath =
-      pathname.startsWith('/login') ||
-      pathname.startsWith('/auth/') ||
-      pathname.startsWith('/_next/') ||
-      pathname.startsWith('/api/')
-
-    // Redirect unauthenticated users to /login
-    if (!user && !isPublicPath) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  } catch (err) {
-    // Never crash the Edge runtime — log and continue
-    console.error('[Middleware] Unexpected error:', err)
+  if (!hasAuthCookie) {
+    // No auth cookie → redirect to login
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  return response
+  // Auth cookie exists — let the page/server-component validate the session
+  return NextResponse.next()
 }
 
 export const config = {
