@@ -131,6 +131,12 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   const triggerExport = async (type: string, exportFn: (id: string) => Promise<void>, setLoader: (val: boolean) => void) => {
     if (!user) return;
     setLoader(true);
@@ -368,7 +374,20 @@ export default function SettingsPage() {
           </Card>
         </section>
 
-        {/* SECTION 5: About */}
+        {/* SECTION 5: Account */}
+        <section>
+          <h2 className="text-lg font-semibold text-text-primary mb-3">Account</h2>
+          <Card className="bg-bg-secondary border-white/5">
+            <CardContent className="p-5">
+              <button onClick={handleLogout}
+                      className="w-full py-3 rounded-lg font-medium text-red-400 bg-transparent hover:bg-white/5 transition-colors">
+                Sign out
+              </button>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* SECTION 6: About */}
         <section>
           <Card className="bg-transparent border-none shadow-none">
             <CardContent className="p-0 text-center space-y-2">

@@ -1,52 +1,48 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import type { NextRequest } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/'
+  const next = searchParams.get('next') ?? '/today'
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
-          },
-        },
-      }
-    )
-    
+    const supabase = createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // Check if user is fully onboarded. 
-      // If we are using Supabase, we fetch from our unified db interface
+      // Check if user has completed onboarding
       const { data: { user } } = await supabase.auth.getUser()
+      
       if (user) {
-        const { data: userData } = await supabase.from('users').select('*').eq('id', user.id).single()
+        // Check if user exists in our users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('onboarding_done, id')
+          .eq('id', user.id)
+          .single()
         
-        // If not in users table yet, redirect to diagnostic to start onboarding
-        if (!userData || userData.varc_percentile === null) {
+        if (!userData) {
+          // New user — create their record and send to onboarding
+          await supabase.from('users').insert({
+            id: user.id,
+            email: user.email!,
+            onboarding_done: false,
+          })
           return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
         }
+        
+        if (!userData.onboarding_done) {
+          return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
+        }
+        
+        // Existing user with onboarding done — go to today
+        return NextResponse.redirect(`${origin}${next}`)
       }
-      return NextResponse.redirect(`${origin}/today`)
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`)
+  // Something went wrong — back to login with error
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
