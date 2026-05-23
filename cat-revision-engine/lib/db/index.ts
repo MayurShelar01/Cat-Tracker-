@@ -37,8 +37,18 @@ export async function createUser(user: Partial<User> & { id: string, email: stri
 }
 
 export async function updateUser(userId: string, updates: Partial<User>): Promise<User> {
-    const supabase = createClient();
+  const supabase = createClient();
+  
+  // Try update first
   const { data, error } = await supabase.from('users').update(updates).eq('id', userId).select().single();
+  
+  if (error && error.code === 'PGRST116') {
+    // Row doesn't exist, create it
+    const { data: insertData, error: insertError } = await supabase.from('users').insert({ id: userId, ...updates }).select().single();
+    if (insertError) throw new DbError('Failed to create user during update', insertError);
+    return insertData as any;
+  }
+  
   if (error) throw new DbError('Failed to update user', error);
   return data as any;
 }

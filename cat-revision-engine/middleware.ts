@@ -1,52 +1,73 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-/**
- * Lightweight middleware that checks for a Supabase auth cookie
- * WITHOUT importing @supabase/ssr (which uses Node.js APIs like
- * Node.js APIs that crash Vercel's Edge runtime).
- *
- * The actual session validation still happens server-side in the
- * route handlers / server components via createServerClient.
- * This middleware only does a fast cookie-presence redirect.
- */
+// Public routes that never require auth
+const PUBLIC_ROUTES = [
+  '/login',
+  '/auth/callback',
+  '/unsubscribe',
+]
+
+// Routes that start with these prefixes are also public
+const PUBLIC_PREFIXES = [
+  '/_next',
+  '/api/auth',
+  '/favicon',
+  '/icons',
+  '/images',
+]
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Public paths that never require auth
-  const isPublicPath =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/auth/') ||
-    pathname.startsWith('/api/')
-
-  if (isPublicPath) {
+  // Always allow public routes
+  if (PUBLIC_ROUTES.includes(pathname)) {
     return NextResponse.next()
   }
 
-  // Check for any Supabase auth cookie (they are prefixed sb-)
-  const hasAuthCookie = request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
+  // Always allow public prefixes
+  if (PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
 
-  if (!hasAuthCookie) {
-    // No auth cookie → redirect to login
+  // Check for Supabase auth cookie (presence check only — no Supabase SDK)
+  // Supabase sets cookies matching: sb-<project-ref>-auth-token
+  const cookies = request.cookies.getAll()
+  const hasAuthCookie = cookies.some(
+    cookie =>
+      cookie.name.startsWith('sb-') &&
+      cookie.name.endsWith('-auth-token') &&
+      cookie.value.length > 0
+  )
+
+  // Also check for the newer Supabase cookie format
+  const hasSessionCookie = cookies.some(
+    cookie =>
+      (cookie.name.includes('auth-token') || cookie.name.includes('session')) &&
+      cookie.value.length > 0
+  )
+
+  const isAuthenticated = hasAuthCookie || hasSessionCookie
+
+  // If not authenticated and trying to access protected route, redirect to login
+  if (!isAuthenticated) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
+    loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Auth cookie exists — let the page/server-component validate the session
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all paths except:
-     * - _next/static  (static assets)
-     * - _next/image   (image optimisation)
+     * Match all request paths EXCEPT:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
      * - favicon.ico
-     * - files with an extension (images, fonts, etc.)
+     * - public folder files (svg, png, jpg, etc)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
   ],
 }

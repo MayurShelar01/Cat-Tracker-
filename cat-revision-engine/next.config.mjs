@@ -5,9 +5,6 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@opentelemetry/api', '@supabase/supabase-js', '@supabase/ssr'],
-  },
 };
 
 export default nextConfig;

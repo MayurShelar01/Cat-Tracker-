@@ -3,11 +3,14 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Mail } from "lucide-react"
+import { Mail, Key } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [usePassword, setUsePassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -18,21 +21,37 @@ export default function LoginPage() {
     setErrorMsg("")
     
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      }
-    })
-
-    if (error) {
-      setErrorMsg(error.message)
-      setLoading(false)
-      return
-    }
     
-    setLoading(false)
-    setSent(true)
+    if (usePassword) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        setErrorMsg(error.message)
+        setLoading(false)
+        return
+      }
+      
+      router.push('/today')
+    } else {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+
+      if (error) {
+        setErrorMsg(error.message)
+        setLoading(false)
+        return
+      }
+      
+      setLoading(false)
+      setSent(true)
+    }
   }
 
   return (
@@ -65,14 +84,38 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full h-12 rounded-xl border border-white/10 bg-bg-secondary px-4 text-center text-lg placeholder:text-text-muted focus:outline-none focus:border-section-quant focus:ring-1 focus:ring-section-quant transition-colors"
                 />
+                
+                {usePassword && (
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="Password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-12 rounded-xl border border-white/10 bg-bg-secondary px-4 text-center text-lg placeholder:text-text-muted focus:outline-none focus:border-section-quant focus:ring-1 focus:ring-section-quant transition-colors animate-in fade-in slide-in-from-top-2"
+                  />
+                )}
+                
                 {errorMsg && <p className="text-status-shaky text-sm text-center">{errorMsg}</p>}
               </div>
             )}
           </div>
           {!sent && (
-            <Button type="submit" size="lg" className="w-full h-12" disabled={loading || !email}>
-              {loading ? "Sending..." : "Send Magic Link"}
-            </Button>
+            <div className="space-y-3">
+              <Button type="submit" size="lg" className="w-full h-12" disabled={loading || !email || (usePassword && !password)}>
+                {loading ? "Signing in..." : (usePassword ? "Sign In" : "Send Magic Link")}
+              </Button>
+              
+              <button 
+                type="button" 
+                onClick={() => setUsePassword(!usePassword)}
+                className="w-full text-sm text-text-muted hover:text-text-primary transition-colors flex items-center justify-center gap-2"
+              >
+                {usePassword ? <Mail className="w-4 h-4" /> : <Key className="w-4 h-4" />}
+                {usePassword ? "Use Magic Link instead" : "Use Password instead"}
+              </button>
+            </div>
           )}
         </form>
       </div>
