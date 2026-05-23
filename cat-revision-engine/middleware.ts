@@ -1,41 +1,36 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = [
-  '/login',
-  '/auth/callback',
-  '/auth',
-]
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  console.log('MIDDLEWARE:', pathname)
 
-  // Always allow auth callback through — never redirect it
-  if (pathname.startsWith('/auth')) {
-    return NextResponse.next()
-  }
-
-  // Allow public routes through
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
-
-  // Allow Next.js internals and static files through
+  // ALWAYS let these through - no exceptions
   if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/debug') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
+    console.log('MIDDLEWARE: allowing through:', pathname)
     return NextResponse.next()
   }
 
-  // Cookie presence check only — NO Supabase SDK in Edge runtime
+  // Cookie check
   const cookies = request.cookies.getAll()
+  console.log('MIDDLEWARE: cookies found:', cookies.map(c => c.name).join(', '))
+  
   const isLoggedIn = cookies.some(
     c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
   )
+  
+  console.log('MIDDLEWARE: isLoggedIn:', isLoggedIn)
 
   if (!isLoggedIn) {
+    console.log('MIDDLEWARE: redirecting to login from:', pathname)
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
