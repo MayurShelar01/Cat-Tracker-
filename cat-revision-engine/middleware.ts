@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Lightweight middleware that checks for a Supabase auth cookie
  * WITHOUT importing @supabase/ssr (which uses Node.js APIs like
- * __dirname that crash Vercel's Edge runtime).
+ * Node.js APIs that crash Vercel's Edge runtime).
  *
  * The actual session validation still happens server-side in the
  * route handlers / server components via createServerClient.
