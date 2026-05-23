@@ -175,7 +175,7 @@ export default function MocksPage() {
         .filter(r => r.topic_id && r.accuracy_pct)
         .map(r => ({ topic_id: r.topic_id as string, accuracy_pct: parseInt(r.accuracy_pct) || 0 }));
 
-      await createMock({
+      const newMock = await createMock({
         user_id: userId,
         taken_at: formData.taken_at,
         mock_name: formData.mock_name,
