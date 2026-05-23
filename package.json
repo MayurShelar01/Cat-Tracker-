@@ -1,0 +1,11 @@
+{
+  "name": "cat-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix cat-revision-engine",
+    "build": "npm run build --prefix cat-revision-engine",
+    "start": "npm run start --prefix cat-revision-engine",
+    "lint": "npm run lint --prefix cat-revision-engine"
+  }
+}

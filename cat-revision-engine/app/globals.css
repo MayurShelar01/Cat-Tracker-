@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #0A0A0F;
+    --bg-secondary: #12121A;
+    --bg-tertiary: #1A1A25;
+    --bg-hover: #22222F;
+
+    --text-primary: #F0F0F5;
+    --text-secondary: #A0A0B5;
+    --text-muted: #5A5A70;
+
+    --color-quant: #3B82F6;
+    --color-lrdi: #F97316;
+    --color-varc: #22C55E;
+
+    --color-r1: #3B82F6;
+    --color-r2: #F97316;
+    --color-r3: #A855F7;
+
+    --color-solid: #22C55E;
+    --color-okay: #EAB308;
+    --color-shaky: #EF4444;
+    --color-overdue: #EF4444;
+    --color-skipped: #6B7280;
+    --color-deferred: #6B7280;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+  }
+}
+
+@layer utilities {
+  .varc-quant-gradient {
+    background: linear-gradient(135deg, #22C55E, #3B82F6);
+  }
+  .varc-quant-text-gradient {
+    background: linear-gradient(135deg, #22C55E, #3B82F6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
