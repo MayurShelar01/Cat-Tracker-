@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -265,6 +265,7 @@ export type Database = {
           r3_completed_at: string | null
           r3_confidence: Database["public"]["Enums"]["confidence_enum"] | null
           r3_due_at: string | null
+          skip_count: number | null
           topic_id: string | null
           user_id: string | null
         }
@@ -282,6 +283,7 @@ export type Database = {
           r3_completed_at?: string | null
           r3_confidence?: Database["public"]["Enums"]["confidence_enum"] | null
           r3_due_at?: string | null
+          skip_count?: number | null
           topic_id?: string | null
           user_id?: string | null
         }
@@ -299,6 +301,7 @@ export type Database = {
           r3_completed_at?: string | null
           r3_confidence?: Database["public"]["Enums"]["confidence_enum"] | null
           r3_due_at?: string | null
+          skip_count?: number | null
           topic_id?: string | null
           user_id?: string | null
         }

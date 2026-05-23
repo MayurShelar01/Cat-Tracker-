@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
-import { DevTools } from "@/components/features/DevTools";
 import { TopicCard } from "@/components/features/TopicCard";
+import { TestCard } from "@/components/features/TestCard";
 import { generateDailyQueue, handleSkip, scheduleR2, scheduleR3 } from "@/lib/utils/revisionEngine";
 import { getUserTopics, updateUserTopic } from "@/lib/db";
 import { mockTopics } from "@/lib/mockData";
@@ -74,6 +74,7 @@ export default function TodayPage() {
   const queueItemsSafe = queue?.queueItems || [];
   const r1Items = queueItemsSafe.filter((i: any) => i.type === 'r1');
   const r2r3Items = queueItemsSafe.filter((i: any) => i.type === 'r2' || i.type === 'r3');
+  const testItems = queueItemsSafe.filter((i: any) => i.type === 'test');
 
   const getTopicDetails = (topicId: string) => {
     const t = (mockTopics || []).find((t: any) => t.id === topicId);
@@ -117,6 +118,48 @@ export default function TodayPage() {
         ...mockFlaggedUpdates
       });
     }
+    await loadQueue(userId);
+  };
+
+  const handleLogTest = async (topicId: string, round: number, correct: number, total: number, timeTakenMin: number) => {
+    if (!userId) return;
+    const accuracy = Math.round((correct / total) * 100);
+    const timeTakenSec = timeTakenMin * 60;
+
+    const supabase = createClient();
+    await supabase.from('test_attempts').insert({
+      user_id: userId,
+      topic_id: topicId,
+      round,
+      total_questions: total,
+      correct,
+      accuracy_pct: accuracy,
+      time_taken_sec: timeTakenSec,
+      attempted_at: new Date().toISOString()
+    });
+
+    if (accuracy < 50) {
+      const details = getTopicDetails(topicId);
+      let currentConf = round === 3 ? details.ut?.r3_confidence : details.ut?.r2_confidence;
+      if (!currentConf) currentConf = details.ut?.r1_confidence;
+
+      let newConf = currentConf;
+      if (currentConf === 'solid') newConf = 'okay';
+      else if (currentConf === 'okay') newConf = 'shaky';
+
+      if (newConf !== currentConf) {
+        alert(`Accuracy is ${accuracy}%. Confidence downgraded to ${newConf}. Please review this topic again.`);
+        const updates: any = {};
+        if (details.ut?.r3_completed_at) updates.r3_confidence = newConf;
+        else if (details.ut?.r2_completed_at) updates.r2_confidence = newConf;
+        else updates.r1_confidence = newConf;
+
+        await updateUserTopic(userId, topicId, updates);
+      }
+    } else {
+      alert(`Test logged successfully! Accuracy: ${accuracy}%`);
+    }
+
     await loadQueue(userId);
   };
 
@@ -223,12 +266,50 @@ export default function TodayPage() {
           </details>
         </section>
 
-        {/* SECTION 3: TESTS (Mock) */}
-        <section className="opacity-60">
-          <h2 className="text-sm font-semibold text-round-r3 uppercase tracking-wider mb-3">🎯 Tests Recommended</h2>
-          <div className="p-4 border border-dashed border-white/10 rounded-xl text-center text-text-muted text-sm bg-bg-tertiary">
-            📝 Test recommendations coming in Pass 2
-          </div>
+        {/* SECTION 3: TESTS */}
+        <section>
+          <details open className="group">
+            <summary className="text-sm font-semibold text-round-r3 uppercase tracking-wider mb-3 flex items-center gap-2 cursor-pointer list-none select-none">
+              🎯 Tests Recommended ({(testItems || []).length})
+              <span className="ml-auto transition-transform group-open:rotate-180">▼</span>
+            </summary>
+            <div className="space-y-3 mt-3 animate-in slide-in-from-top-2 duration-200">
+              {(!testItems || testItems.length === 0) ? (
+                <div className="p-6 border border-dashed border-white/10 rounded-xl text-center text-text-muted text-sm bg-bg-secondary flex flex-col items-center justify-center">
+                  <span className="text-2xl mb-2">📝</span>
+                  No tests scheduled for today.
+                </div>
+              ) : (
+                (() => {
+                  let accumulatedQs = 0;
+                  return testItems.map((item: any) => {
+                    const details = getTopicDetails(item.topic_id);
+                    if (!details.topic_name) return null;
+                    
+                    const baseQs = item.round === 2 ? 10 : 15;
+                    const mult = item.mock_flagged ? 1.5 : 1;
+                    const totalQs = Math.floor(baseQs * mult);
+                    
+                    const isDeferred = accumulatedQs + totalQs > 15;
+                    if (!isDeferred) accumulatedQs += totalQs;
+
+                    return (
+                      <TestCard
+                        key={`test-${item.topic_id}-${item.round}`}
+                        topicId={item.topic_id}
+                        topicName={details.topic_name}
+                        section={details.section || 'VARC'}
+                        round={item.round}
+                        totalQuestions={totalQs}
+                        isDeferred={isDeferred}
+                        onLogTest={(correct, total, timeTaken) => handleLogTest(item.topic_id, item.round, correct, total, timeTaken)}
+                      />
+                    );
+                  });
+                })()
+              )}
+            </div>
+          </details>
         </section>
 
         {/* SECTION 4: ALERTS (Mock) */}
@@ -262,8 +343,6 @@ export default function TodayPage() {
         </section>
 
       </div>
-      
-      <DevTools />
     </div>
   );
 }

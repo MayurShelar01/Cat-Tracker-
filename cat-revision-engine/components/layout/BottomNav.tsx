@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ClipboardList, BarChart2 } from 'lucide-react';
+import { Home, ClipboardList, BarChart2, Settings } from 'lucide-react';
 
 export const BottomNav = () => {
   const pathname = usePathname();
@@ -17,6 +17,7 @@ export const BottomNav = () => {
     { name: 'Today', href: '/today', icon: Home, activeColor: 'text-section-quant', disabled: false },
     { name: 'Mocks', href: '/mocks', icon: ClipboardList, activeColor: 'text-section-lrdi', disabled: false },
     { name: 'Dashboard', href: '/dashboard', icon: BarChart2, activeColor: 'text-section-varc', disabled: false },
+    { name: 'Settings', href: '/settings', icon: Settings, activeColor: 'text-white', disabled: false },
   ];
 
   return (

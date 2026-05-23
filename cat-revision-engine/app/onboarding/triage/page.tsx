@@ -18,6 +18,7 @@ export default function TriagePage() {
   const [submitting, setSubmitting] = useState(false)
   
   const [selections, setSelections] = useState<Record<string, TriageStatus>>({})
+  const [confidences, setConfidences] = useState<Record<string, 'shaky'|'okay'|'solid'>>({})
   
   useEffect(() => {
     const init = async () => {
@@ -40,6 +41,13 @@ export default function TriagePage() {
   
   const handleSelect = (topicId: string, status: TriageStatus) => {
     setSelections(prev => ({ ...prev, [topicId]: status }))
+    if (status === 'studied_before' && !confidences[topicId]) {
+      setConfidences(prev => ({ ...prev, [topicId]: 'okay' }))
+    }
+  }
+
+  const handleConfidenceSelect = (topicId: string, conf: 'shaky'|'okay'|'solid') => {
+    setConfidences(prev => ({ ...prev, [topicId]: conf }))
   }
 
   const handleBulkNeverTouched = () => {
@@ -77,17 +85,18 @@ export default function TriagePage() {
         if (!status) return null
         
         if (status === 'studied_before') {
+          const conf = confidences[topicId] || 'okay'
           const due = new Date(now)
-          due.setDate(due.getDate() + 21) // +21 days for 'okay'
+          due.setDate(due.getDate() + (conf === 'shaky' ? 14 : 21)) // +14 days for shaky, +21 for okay/solid
           
           return {
             user_id: userId,
             topic_id: topicId,
             r1_status: 'done' as const,
             r1_completed_at: now.toISOString(),
-            r1_confidence: 'okay' as const,
+            r1_confidence: conf,
             catchup_tag: 'studied_before' as const,
-            r2_due_at: due.toISOString()
+            r2_due_at: due.toISOString().split('T')[0] // use date string
           }
         } else {
           return {
@@ -140,6 +149,7 @@ export default function TriagePage() {
         {topics.map(topic => {
           const currentSelection = selections[topic.id]
           const isSelected = !!currentSelection
+          const currentConf = confidences[topic.id] || 'okay'
           
           let borderColor = "border-transparent"
           if (topic.section === 'QUANT') borderColor = "border-l-section-quant"
@@ -188,6 +198,38 @@ export default function TriagePage() {
                     🟢 Studied Before
                   </Button>
                 </div>
+
+                {currentSelection === 'studied_before' && (
+                  <div className="mt-4 pt-3 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="text-xs text-text-muted mb-2 text-center">How confident are you right now?</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button 
+                        variant="outline" size="sm"
+                        className={`text-xs ${currentConf === 'shaky' ? 'bg-status-shaky text-white border-transparent' : 'border-status-shaky/30 text-status-shaky'}`}
+                        onClick={() => handleConfidenceSelect(topic.id, 'shaky')}
+                        disabled={submitting}
+                      >
+                        🔴 Shaky
+                      </Button>
+                      <Button 
+                        variant="outline" size="sm"
+                        className={`text-xs ${currentConf === 'okay' ? 'bg-status-okay text-white border-transparent' : 'border-status-okay/30 text-status-okay'}`}
+                        onClick={() => handleConfidenceSelect(topic.id, 'okay')}
+                        disabled={submitting}
+                      >
+                        🟡 Okay
+                      </Button>
+                      <Button 
+                        variant="outline" size="sm"
+                        className={`text-xs ${currentConf === 'solid' ? 'bg-status-done text-white border-transparent' : 'border-status-done/30 text-status-done'}`}
+                        onClick={() => handleConfidenceSelect(topic.id, 'solid')}
+                        disabled={submitting}
+                      >
+                        🟢 Solid
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )
@@ -195,14 +237,16 @@ export default function TriagePage() {
 
         {triagedCount < totalCount && (
           <div className="pt-4 pb-8 flex flex-col items-center gap-4">
-            <Button 
-              variant="ghost" 
-              className="text-text-muted hover:text-text-primary hover:underline hover:bg-transparent"
-              onClick={handleBulkNeverTouched}
-              disabled={submitting}
-            >
-              Mark all remaining as Never Touched
-            </Button>
+            {triagedCount >= 5 && (
+              <Button 
+                variant="ghost" 
+                className="text-text-muted hover:text-text-primary hover:underline hover:bg-transparent"
+                onClick={handleBulkNeverTouched}
+                disabled={submitting}
+              >
+                Mark all remaining as Never Touched
+              </Button>
+            )}
             
             <Button 
               variant="outline" 

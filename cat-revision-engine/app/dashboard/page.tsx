@@ -483,6 +483,13 @@ export default function DashboardPage() {
           </Card>
         </section>
 
+        {/* QUICK EXPORT SHORTCUT */}
+        <div className="text-center pt-4 pb-2">
+          <Link href="/settings#export" className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-4 py-2 rounded-full font-medium">
+            <span>📥</span> Export your data as CSV
+          </Link>
+        </div>
+
       </div>
     </div>
   );

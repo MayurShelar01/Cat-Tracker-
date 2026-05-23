@@ -1,6 +1,4 @@
 import { createClient } from '../supabase/client';
-import { isSupabase } from './index';
-import * as mockDb from '../mockDb';
 import { getAllTopics } from './index';
 
 export interface DashboardData {
@@ -68,14 +66,7 @@ export async function getDashboardData(userId: string, forceRefresh = false): Pr
 
   let userObj: any, userTopics: any[], tests: any[], mocks: any[], mockPerf: any[];
 
-  if (!isSupabase) {
-    const db = mockDb.getDb();
-    userObj = db.users.find(u => u.id === userId);
-    userTopics = db.userTopics.filter(ut => ut.user_id === userId);
-    tests = [];
-    mocks = db.mocks.filter(m => m.user_id === userId && !m.locked);
-    mockPerf = db.mockTopicPerf.filter(mp => mocks.some(m => m.id === mp.mock_id));
-  } else {
+  
     const supabase = createClient();
     const [userRes, utRes, testsRes, mocksRes] = await Promise.all([
       supabase.from('users').select('*').eq('id', userId).single(),
@@ -96,7 +87,6 @@ export async function getDashboardData(userId: string, forceRefresh = false): Pr
     } else {
       mockPerf = [];
     }
-  }
 
   if (!userObj) {
     throw new Error('User not found');

@@ -9,7 +9,7 @@ import {
   getTestAttemptsByTopic, 
   getMockTopicPerf 
 } from '@/lib/db';
-import { toDateString, addDays } from '@/lib/mockDb';
+import { toDateString, addDays } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -91,11 +91,11 @@ export default function TopicDetailPage() {
 
   const handleExtraRevision = async () => {
     if (!userTopic || !userId) return;
-    const extraDate = toDateString(addDays(new Date(), 3));
+    const extraDate = toDateString(new Date());
     await updateUserTopic(userId, topicId, { extra_r2_inserted: true, r2_due_at: extraDate, r2_completed_at: null });
     // Simulate re-queue
     await generateDailyQueue(userId, new Date(extraDate));
-    alert(`Extra revision scheduled for ${extraDate}`);
+    alert(`Extra revision scheduled for today! Check your dashboard.`);
     window.location.reload();
   };
 
@@ -392,8 +392,8 @@ export default function TopicDetailPage() {
               disabled={userTopic?.extra_r2_inserted && !userTopic?.r2_completed_at}
             >
               {userTopic?.extra_r2_inserted && !userTopic?.r2_completed_at 
-                ? "✅ Extra revision scheduled" 
-                : "Request Extra Revision"
+                ? "✅ Review scheduled for today" 
+                : "Force Review Today"
               }
             </Button>
             

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getMocks, createMock, getMockTopicPerfByMock, getAllTopics } from '@/lib/db';
-import { toDateString } from '@/lib/mockDb'; // just for utility
+import { toDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

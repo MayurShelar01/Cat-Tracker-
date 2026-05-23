@@ -1,6 +1,6 @@
 import { getMockById, getMockTopicPerfByMock, getUserTopic, updateUserTopic } from '../db';
 import { generateDailyQueue } from '../utils/revisionEngine';
-import { toDateString, addDays } from '../mockDb'; // utility for dates
+import { toDateString, addDays } from '@/lib/utils';
 import { getAllTopics } from '../db';
 
 export interface MockFeedbackResult {
@@ -23,7 +23,7 @@ export async function applyMockFeedback(mockId: string, userId: string): Promise
   if (!mock) throw new Error("Mock not found");
 
   const topicPerf = await getMockTopicPerfByMock(mockId);
-  const weakTopics = topicPerf.filter(tp => tp.accuracy_pct < 60);
+  const weakTopics = topicPerf.filter(tp => tp.topic_id !== null && tp.accuracy_pct !== null && tp.accuracy_pct < 60);
 
   const result: MockFeedbackResult = {
     flaggedTopics: [],
@@ -38,7 +38,8 @@ export async function applyMockFeedback(mockId: string, userId: string): Promise
   const extraR2Date = toDateString(addDays(today, 5));
 
   for (const wt of weakTopics) {
-    const userTopic = await getUserTopic(userId, wt.topic_id);
+    const topicId = wt.topic_id as string;
+    const userTopic = await getUserTopic(userId, topicId);
     if (!userTopic) continue;
 
     // Determine round to downgrade
@@ -80,15 +81,15 @@ export async function applyMockFeedback(mockId: string, userId: string): Promise
     else if (targetRound === 'r2') updates.r2_confidence = newConf;
     else updates.r1_confidence = newConf;
 
-    await updateUserTopic(userId, wt.topic_id, updates);
+    await updateUserTopic(userId, topicId, updates);
 
-    const topicData = allTopics.find(t => t.id === wt.topic_id);
+    const topicData = allTopics.find(t => t.id === topicId);
 
     result.flaggedTopics.push({
-      topicId: wt.topic_id,
+      topicId: topicId,
       topicName: topicData?.topic_name || "Unknown Topic",
       section: topicData?.section || "VARC",
-      accuracyPct: wt.accuracy_pct,
+      accuracyPct: wt.accuracy_pct as number,
       previousConfidence: currentConf,
       newConfidence: newConf,
       extraR2Date,

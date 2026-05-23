@@ -1,5 +1,5 @@
 import { getUserTopics, saveDailyQueue, updateUserTopic, getUser, getDailyQueue } from "../db";
-import { toDateString, addDays, UserTopic } from "../mockDb";
+import { toDateString, addDays } from '@/lib/utils';
 import { mockTopics, Topic } from "../mockData";
 
 export type Confidence = 'shaky' | 'okay' | 'solid';
@@ -132,6 +132,30 @@ export const generateDailyQueue = async (userId: string, targetDate?: Date) => {
     });
   });
 
+  // 3. Gather Tests
+  // R2 and R3 topics should trigger tests on the same day they are scheduled for revision.
+  // Actually, wait. A topic is in the queue for R2 today. Should it also have a test?
+  // Usually, the topic is revised first, then a test is recommended. We can just add tests for the items in R2/R3 today.
+  dueR2.forEach(ut => {
+    queueItems.push({
+      topic_id: ut.topic_id,
+      round: 2,
+      type: 'test',
+      priority: 0,
+      mock_flagged: ut.mock_flagged
+    });
+  });
+
+  dueR3.forEach(ut => {
+    queueItems.push({
+      topic_id: ut.topic_id,
+      round: 3,
+      type: 'test',
+      priority: 0,
+      mock_flagged: ut.mock_flagged
+    });
+  });
+
   // 4. Compute load and Auto-defer
   let loadScore = computeLoadScore(queueItems);
   let rebalanced = false;
@@ -169,10 +193,10 @@ export const generateDailyQueue = async (userId: string, targetDate?: Date) => {
       }
     }
     
-    // Actually redistribute deferredItems across next 3 days
+    // Actually redistribute deferredItems across next 3 days (never tomorrow)
     for (let i = 0; i < deferredItems.length; i++) {
       const item = deferredItems[i];
-      const daysToDefer = (i % 3) + 1; // spreads 1, 2, 3, 1, 2, 3...
+      const daysToDefer = (i % 3) + 2; // spreads +2, +3, +4 days... (never +1)
       const targetDayStr = toDateString(addDays(today, daysToDefer));
       if (item.round === 2) await updateUserTopic(userId, item.topic_id, { r2_due_at: targetDayStr });
       if (item.round === 3) await updateUserTopic(userId, item.topic_id, { r3_due_at: targetDayStr });
@@ -195,12 +219,14 @@ export const generateDailyQueue = async (userId: string, targetDate?: Date) => {
 };
 
 export const handleSkip = async (userId: string, topicId: string, round: number, skippedDate: Date) => {
-  const d2 = addDays(skippedDate, 2);
-  const targetDay = d2; 
+  const targetDay = addDays(skippedDate, 3); 
   const targetStr = toDateString(targetDay);
   
-  if (round === 2) await updateUserTopic(userId, topicId, { r2_due_at: targetStr });
-  if (round === 3) await updateUserTopic(userId, topicId, { r3_due_at: targetStr });
+  const userTopic = await getUserTopics(userId).then(res => res.find(ut => ut.topic_id === topicId));
+  const skipCount = (userTopic?.skip_count || 0) + 1;
+  
+  if (round === 2) await updateUserTopic(userId, topicId, { r2_due_at: targetStr, skip_count: skipCount });
+  if (round === 3) await updateUserTopic(userId, topicId, { r3_due_at: targetStr, skip_count: skipCount });
   
   // Re-generate queue for today to remove it
   await generateDailyQueue(userId, skippedDate);
