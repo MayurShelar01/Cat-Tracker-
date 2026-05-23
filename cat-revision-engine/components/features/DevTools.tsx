@@ -34,12 +34,12 @@ export const DevTools = () => {
     const upcomingR2 = db.userTopics.filter(ut => ut.r2_due_at && !ut.r2_completed_at).map(ut => ut.r2_due_at).sort();
     const upcomingR3 = db.userTopics.filter(ut => ut.r3_due_at && !ut.r3_completed_at).map(ut => ut.r3_due_at).sort();
 
-    const loadNext7Days = Array.from({length: 7}).map((_, i) => {
+    const loadNext7Days = await Promise.all(Array.from({length: 7}).map(async (_, i) => {
       const target = addDays(d, i);
       // Run a simulation of generateDailyQueue to get load score (without saving it ideally, but saving is fine in mock)
-      const res = generateDailyQueue(toDateString(target));
+      const res = await generateDailyQueue(toDateString(target));
       return { date: toDateString(target), score: res.loadScore };
-    });
+    }));
 
     setStats({
       r1Count, r2Pending, r3Pending,
