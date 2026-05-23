@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/auth/callback']
+const PUBLIC_ROUTES = [
+  '/login',
+  '/auth/callback',
+  '/auth',
+]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Always allow auth callback through — never redirect it
+  if (pathname.startsWith('/auth')) {
+    return NextResponse.next()
+  }
 
   // Allow public routes through
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {

@@ -3,46 +3,77 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/today'
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+  const origin = requestUrl.origin
 
-  if (code) {
-    const supabase = createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
-    if (!error) {
-      // Check if user has completed onboarding
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        // Check if user exists in our users table
-        const { data: userData } = await supabase
-          .from('users')
-          .select('onboarding_done, id')
-          .eq('id', user.id)
-          .single()
-        
-        if (!userData) {
-          // New user — create their record and send to onboarding
-          await supabase.from('users').insert({
-            id: user.id,
-            email: user.email!,
-            onboarding_done: false,
-          })
-          return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
-        }
-        
-        if (!userData.onboarding_done) {
-          return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
-        }
-        
-        // Existing user with onboarding done — go to today
-        return NextResponse.redirect(`${origin}${next}`)
-      }
-    }
+  console.log('Auth callback hit. Code present:', !!code)
+  console.log('Origin:', origin)
+
+  if (!code) {
+    console.log('No code found, redirecting to login')
+    return NextResponse.redirect(`${origin}/login?error=no_code`)
   }
 
-  // Something went wrong — back to login with error
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  try {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    console.log('Exchange result - error:', error?.message)
+    console.log('Exchange result - user:', data?.user?.email)
+
+    if (error) {
+      console.error('Session exchange error:', error.message)
+      return NextResponse.redirect(`${origin}/login?error=exchange_failed`)
+    }
+
+    if (!data.user) {
+      return NextResponse.redirect(`${origin}/login?error=no_user`)
+    }
+
+    // Check if user exists in our users table
+    const { data: existingUser, error: userError } = await supabase
+      .from('users')
+      .select('id, onboarding_done')
+      .eq('id', data.user.id)
+      .single()
+
+    console.log('Existing user:', existingUser)
+    console.log('User error:', userError?.message)
+
+    if (!existingUser) {
+      // Create new user record
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          email: data.user.email!,
+          onboarding_done: false,
+          varc_percentile: 0,
+          quant_percentile: 0,
+          lrdi_percentile: 0,
+          current_day: 0,
+          catchup_mode: true,
+        })
+
+      if (insertError) {
+        console.error('User insert error:', insertError.message)
+        // Still redirect to onboarding even if insert fails
+        // The onboarding page will handle user creation
+      }
+
+      return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
+    }
+
+    if (!existingUser.onboarding_done) {
+      return NextResponse.redirect(`${origin}/onboarding/diagnostic`)
+    }
+
+    return NextResponse.redirect(`${origin}/today`)
+
+  } catch (err) {
+    console.error('Callback error:', err)
+    return NextResponse.redirect(`${origin}/login?error=callback_failed`)
+  }
 }

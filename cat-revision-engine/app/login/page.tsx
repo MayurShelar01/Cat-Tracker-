@@ -55,8 +55,12 @@ function LoginContent() {
         </p>
 
         {authError && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-            Sign in failed. Please try again.
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+            Auth error: {authError}
+            <br />
+            <span className="text-xs opacity-70">
+              Please try again or contact support
+            </span>
           </div>
         )}
 
