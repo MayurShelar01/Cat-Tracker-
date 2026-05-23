@@ -37,7 +37,7 @@ export const DevTools = () => {
     const loadNext7Days = Array.from({length: 7}).map((_, i) => {
       const target = addDays(d, i);
       // Run a simulation of generateDailyQueue to get load score (without saving it ideally, but saving is fine in mock)
-      const res = generateDailyQueue(target);
+      const res = generateDailyQueue(toDateString(target));
       return { date: toDateString(target), score: res.loadScore };
     });
 
